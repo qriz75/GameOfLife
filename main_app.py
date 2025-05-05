@@ -37,6 +37,7 @@ challenge_mode_active = False
 challenge_pattern_placed = False
 challenge_initial_population = 0
 challenge_final_population = 0
+wrap_edges = None # Declare globally, initialize later
 
 # Pattern Selection State
 selected_pattern_name = None
@@ -59,6 +60,7 @@ gen_time_label = None
 pop_stability_label = None
 initial_pop_label = None
 final_pop_label = None
+wrap_edges_checkbox = None # Placeholder for the checkbox
 
 # --- UI Update and Event Handlers ---
 # (Keep these in the main app as they interact heavily with global state and UI widgets)
@@ -152,7 +154,7 @@ def update_info_labels():
 
 def animation_step():
     """Performs one step of the simulation and updates state."""
-    global grid, paused, generation_count, simulation_state, previous_grid_state_for_stable_check, population_count, initial_run_grid, initial_run_generation, previous_grid_states, live_cell_count_history, generation_time_history
+    global grid, paused, generation_count, simulation_state, previous_grid_state_for_stable_check, population_count, initial_run_grid, initial_run_generation, previous_grid_states, live_cell_count_history, generation_time_history, wrap_edges # Add wrap_edges
     global root, canvas, canvas_rects # Need root and canvas
 
     if root is None or canvas is None: return # Exit if UI not ready
@@ -178,8 +180,8 @@ def animation_step():
     current_grid_bytes = grid.tobytes()
     previous_grid_state_for_stable_check = grid.copy()
 
-    # Use imported game logic function
-    new_grid = update_grid_logic(grid)
+    # Use imported game logic function - pass wrap_edges state
+    new_grid = update_grid_logic(grid, wrap_edges.get())
 
     # --- Check for End States ---
     current_population = np.sum(new_grid)
@@ -545,13 +547,13 @@ def cancel_challenge_mode():
 # --- Pattern Categories ---
 PATTERN_CATEGORIES = {
     "Still Lifes": ["Block", "Beehive", "Loaf", "Boat", "Tub"],
-    "Oscillators": ["Blinker", "Toad", "Beacon", "Pulsar", "Pentadecathlon", "Figure Eight"], # Added Figure Eight
+    "Oscillators": ["Blinker", "Toad", "Beacon", "Pulsar", "Pentadecathlon"], # Removed Figure Eight
     "Spaceships": [
         "Glider", "Lightweight Spaceship (LWSS)", "Middleweight Spaceship (MWSS)",
         "Heavyweight Spaceship (HWSS)", "Spider" # Replaced Copperhead with Spider
         ],
     "Guns": ["Gosper Glider Gun"], # Removed Simkin Glider Gun
-    "Methuselahs": ["R-pentomino", "Diehard", "Acorn", "Bunnies", "Thunderbird"]
+    "Methuselahs": ["R-pentomino", "Diehard", "Acorn", "Bunnies", "Thunderbird", "Figure Eight"] # Added Figure Eight
 }
 
 # --- Main Application Setup ---
@@ -559,9 +561,11 @@ PATTERN_CATEGORIES = {
 def build_gui(root_widget):
     """Builds the Tkinter GUI layout."""
     global root, canvas, pause_button, reset_run_button, full_reset_button, challenge_button
-    global generation_digital_label, state_digital_label, population_label, gen_time_label, pop_stability_label, initial_pop_label, final_pop_label # Assign widgets
+    global generation_digital_label, state_digital_label, population_label, gen_time_label, pop_stability_label, initial_pop_label, final_pop_label, wrap_edges_checkbox # Assign widgets
+    global wrap_edges # Need the variable itself
 
     root = root_widget # Assign the main window passed in
+    wrap_edges = tk.BooleanVar(value=True) # INITIALIZE HERE, after root exists
 
     try:
         if root.tk.call('tk', 'windowingsystem') == 'win32': root.state('zoomed')
@@ -602,6 +606,10 @@ def build_gui(root_widget):
     reset_run_button.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
     full_reset_button = ttk.Button(top_button_frame, text="Full Reset", command=full_reset_simulation)
     full_reset_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    # --- Edge Wrap Checkbox ---
+    wrap_edges_checkbox = ttk.Checkbutton(control_frame, text="Wrap Edges", variable=wrap_edges, onvalue=True, offvalue=False)
+    wrap_edges_checkbox.pack(side=tk.TOP, pady=(5, 5), anchor='w') # Place below top buttons
 
     # --- Digital Status Display ---
     status_display_frame = tk.LabelFrame(control_frame, text="Status", relief="ridge", borderwidth=2, padx=5, pady=5)
